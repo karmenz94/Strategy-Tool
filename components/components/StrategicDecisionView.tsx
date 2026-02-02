@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState, useEffect } from 'react';
 import { ProjectReality, StrategyParams, CalculatedMetrics, ProgramGroup } from '../types';
 import { calculateMetrics } from '../utils/calculations';
@@ -333,7 +334,7 @@ const RecommendationEngine = ({
 
 // --- MAIN COMPONENT ---
 
-export const StrategicDecisionView: React.FC<Props> = ({ project, scenarios, activeScenarioId, onActivateScenario, onProceed }) => {
+const StrategicDecisionView: React.FC<Props> = ({ project, scenarios, activeScenarioId, onActivateScenario, onProceed }) => {
   // Deep Dive State
   const [deepDiveId, setDeepDiveId] = useState<string | null>(null);
 
@@ -673,3 +674,5 @@ export const StrategicDecisionView: React.FC<Props> = ({ project, scenarios, act
     </div>
   );
 };
+
+export default StrategicDecisionView;

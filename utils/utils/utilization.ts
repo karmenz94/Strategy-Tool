@@ -588,14 +588,6 @@ export const calculateMeetingMetrics = (
         const pctFit = stats.occupiedMeetings > 0 ? countFit / stats.occupiedMeetings : 0;
         const pctOver = stats.occupiedMeetings > 0 ? countOver / stats.occupiedMeetings : 0;
 
-        // Calculate analysis variables to fix undefined references
-        const avgOccRounded = Math.round(avgOccupancy);
-        const avgRatio = avgCapRatio;
-        const typicalValue = modeSize;
-        const typicalRounded = Math.round(typicalValue);
-        const typicalRatio = capacity > 0 ? typicalValue / capacity : 0;
-        const typicalBinLabel = topMeetingSizeStr;
-
         roomMetrics.push({
             floor: stats.floor,
             roomName: stats.name,
@@ -610,16 +602,6 @@ export const calculateMeetingMetrics = (
             topMeetingSize: topMeetingSizeStr,
             avgCapRatio: avgCapRatio,
             classification: classification,
-            analysis: {
-                avgOccRaw: avgOccupancy,
-                avgOccRounded: avgOccRounded,
-                avgRatio: avgRatio,
-                typicalBin: typicalBinLabel,
-                typicalTypeVal: typicalValue,
-                typicalRounded: typicalRounded,
-                typicalRatio: typicalRatio,
-                statusRule: classification
-            },
             capacityFit: {
                 low: { count: countLow, pct: pctLow * 100, events: stats.fitBuckets.low },
                 mid: { count: countMid, pct: pctMid * 100, events: stats.fitBuckets.mid },
