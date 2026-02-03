@@ -8,7 +8,7 @@ import {
   Monitor, ChevronDown, ChevronRight, Eye, EyeOff, Briefcase, Coffee, Search
 } from 'lucide-react';
 import VisualMixChart from './VisualMixChart';
-// import ScenarioDeepDive from './ScenarioDeepDive';
+import ScenarioDeepDive from './ScenarioDeepDive';
 import { getAreaConstants, getProgramPreset } from '../constants';
 
 interface Props {
@@ -410,28 +410,24 @@ const StrategicDecisionView: React.FC<Props> = ({ project, scenarios, activeScen
     }
   };
 
-    // --- RENDER DEEP DIVE ---
-  // Temporarily disabled because ScenarioDeepDive component is missing in this prototype build.
+  // --- RENDER DEEP DIVE ---
   if (deepDiveId) {
-    return (
-      <div className="p-6">
-        <div className="max-w-3xl mx-auto bg-amber-50 border border-amber-200 rounded-xl p-5 text-amber-900">
-          <div className="font-bold mb-2">Deep Dive (temporary placeholder)</div>
-          <div className="text-sm">
-            This prototype references <span className="font-mono">ScenarioDeepDive</span>, but the component
-            isn’t present in the codebase, so Deep Dive is disabled for build/deploy.
-          </div>
-          <button
-            className="mt-4 px-3 py-2 rounded-lg border border-amber-300 bg-white hover:bg-amber-100 font-bold text-sm"
-            onClick={() => setDeepDiveId(null)}
-          >
-            Back
-          </button>
-        </div>
-      </div>
-    );
+     const ddScenario = scenarios.find(s => s.id === deepDiveId);
+     if (ddScenario && scenarioMetricsMap[deepDiveId]) {
+        return (
+           <ScenarioDeepDive 
+              project={project}
+              scenario={ddScenario}
+              metrics={scenarioMetricsMap[deepDiveId]}
+              allScenarios={scenarios}
+              onBack={() => setDeepDiveId(null)}
+              programGroups={programGroups}
+              onSwitchScenario={setDeepDiveId}
+              onGoToStacking={onProceed}
+           />
+        );
+     }
   }
-
 
   // --- RENDER COMPARISON DASHBOARD ---
   return (

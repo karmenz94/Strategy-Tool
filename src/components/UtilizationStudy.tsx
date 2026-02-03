@@ -14,15 +14,15 @@ import {
 } from 'recharts';
 import { ObservationRecord, StudyType, RoomPerformanceMetric, MeetingEvent, RoomSizeBreakdown, CapacityFitBucket, GlobalSizeBin, UtilizationMetrics, ConcurrencyMetric } from '../types';
 import { 
-  REQUIRED_FIELDS_WORKSTATION, REQUIRED_FIELDS_MEETING, 
-  parseExcelFile, transformData, calculateWorkstationMetrics, calculateMeetingMetrics, generateSampleData, autoMapColumns, validateMapping, calculateConcurrencyStats
+  REQUIRED_FIELDS_MEETING, 
+  parseExcelFile, transformData, calculateMeetingMetrics, generateSampleData, autoMapColumns, validateMapping, calculateConcurrencyStats
 } from '../utils/utilization';
 import { MM_PALETTE } from '../constants';
 import * as XLSX from 'xlsx';
 
 const UtilizationStudy: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'import' | 'results'>('import');
-  const [studyType, setStudyType] = useState<StudyType>('workstation');
+  const [studyType, setStudyType] = useState<StudyType>('meeting');
   
   // Data State
   const [rawData, setRawData] = useState<any[]>([]);
@@ -50,15 +50,15 @@ const UtilizationStudy: React.FC = () => {
     setHeaders(headRow);
 
     // Auto Map
-    const guessedMappings = autoMapColumns(headRow, studyType === 'workstation' ? 'workstation' : 'meeting');
+    const guessedMappings = autoMapColumns(headRow, 'meeting');
     setMappings(guessedMappings);
 
     // Transform immediately for initial view
-    const processed = transformData(data, guessedMappings, studyType === 'workstation' ? 'workstation' : 'meeting');
+    const processed = transformData(data, guessedMappings, 'meeting');
     setRecords(processed);
 
     // Validation
-    const validation = validateMapping(data, guessedMappings, studyType === 'workstation' ? 'workstation' : 'meeting');
+    const validation = validateMapping(data, guessedMappings, 'meeting');
     if (!validation.isValid || validation.warnings.length > 0) {
         setValidationErrors({ missing: validation.missingFields, warnings: validation.warnings });
         setInitialShowMapping(true);
@@ -90,7 +90,7 @@ const UtilizationStudy: React.FC = () => {
   };
 
   const loadSample = () => {
-      const sample = generateSampleData(studyType === 'workstation' ? 'workstation' : 'meeting');
+      const sample = generateSampleData('meeting');
       setRecords(sample);
       setFileName("Sample_Data.xlsx");
       setInitialShowMapping(false);
@@ -111,7 +111,7 @@ const UtilizationStudy: React.FC = () => {
             initialShowMapping={initialShowMapping}
             onUpdateMappings={(newMap) => {
                 setMappings(newMap);
-                const updated = transformData(rawData, newMap, studyType === 'workstation' ? 'workstation' : 'meeting');
+                const updated = transformData(rawData, newMap, 'meeting');
                 setRecords(updated);
             }}
         />
@@ -134,24 +134,10 @@ const UtilizationStudy: React.FC = () => {
                         <h3 className="text-2xl font-bold text-slate-800 mb-2">Select Study Type</h3>
                         <p className="text-slate-500 mb-8">Choose the analytical lens for your observation data.</p>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
-                            <button 
-                                onClick={() => { setStudyType('workstation'); setStep(2); }} 
-                                className="group p-8 border-2 border-slate-100 hover:border-orange-500 rounded-2xl hover:bg-orange-50/50 transition-all text-left relative overflow-hidden"
-                            >
-                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <Layout className="w-24 h-24 text-orange-600" />
-                                </div>
-                                <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                    <Layout className="w-6 h-6 text-orange-600" />
-                                </div>
-                                <h4 className="text-lg font-bold text-slate-800 mb-1">Workstation Occupancy</h4>
-                                <p className="text-sm text-slate-500">Analyze desk usage, peak loads, and department patterns.</p>
-                            </button>
-
+                        <div className="flex justify-center max-w-2xl mx-auto">
                             <button 
                                 onClick={() => { setStudyType('meeting'); setStep(2); }} 
-                                className="group p-8 border-2 border-slate-100 hover:border-orange-500 rounded-2xl hover:bg-orange-50/50 transition-all text-left relative overflow-hidden"
+                                className="group p-8 border-2 border-slate-100 hover:border-orange-500 rounded-2xl hover:bg-orange-50/50 transition-all text-left relative overflow-hidden w-full max-w-sm"
                             >
                                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                                     <Users className="w-24 h-24 text-orange-600" />
@@ -332,13 +318,11 @@ const ResultsView: React.FC<{
 
     // Metrics based on filtered data
     const metrics = useMemo(() => {
-        return type === 'workstation' 
-            ? calculateWorkstationMetrics(filteredRecords) 
-            : calculateMeetingMetrics(filteredRecords, userCapacities);
+        return calculateMeetingMetrics(filteredRecords, userCapacities);
     }, [filteredRecords, type, userCapacities]);
 
     // Check for critical missing fields to show warning badge
-    const requiredFields = type === 'workstation' ? REQUIRED_FIELDS_WORKSTATION : REQUIRED_FIELDS_MEETING;
+    const requiredFields = REQUIRED_FIELDS_MEETING;
     const missingFields = requiredFields.filter(f => f.required && currentMappings[f.key] === undefined);
     const hasCriticalWarning = missingFields.length > 0;
 
@@ -418,7 +402,7 @@ const ResultsView: React.FC<{
                     </button>
                     <div>
                         <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                            {type === 'workstation' ? 'Workstation Occupancy' : 'Meeting Utilization'}
+                            Meeting Utilization
                             {hasCriticalWarning && (
                                 <span title="Mapping Incomplete" className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                                     <AlertTriangle className="w-3 h-3" /> Fix Mapping
@@ -435,25 +419,6 @@ const ResultsView: React.FC<{
                 </div>
             </div>
 
-            {/* Filter Bar - Only show for Workstation studies */}
-            {type === 'workstation' && (
-                <div className="bg-white border-b border-slate-200 px-6 py-2 flex items-center gap-4 z-10 overflow-x-auto">
-                    <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase mr-2">
-                        <Filter className="w-3 h-3" /> Filters:
-                    </div>
-                    <FilterDropdown label="Floor" items={options.floors} active={filters.floors} field="floors" />
-                    <FilterDropdown label="Time Slot" items={options.timeSlots} active={filters.timeSlots} field="timeSlots" />
-                    <FilterDropdown label="Department" items={options.depts} active={filters.depts} field="depts" />
-                    <FilterDropdown label="Date" items={options.dates} active={filters.dates} field="dates" />
-                    <button 
-                        onClick={() => setFilters({floors:[], rooms:[], types:[], weeks:[], days:[], timeSlots:[], depts:[], dates:[]})} 
-                        className="ml-auto text-xs font-bold text-rose-500 hover:text-rose-700 flex items-center gap-1"
-                    >
-                        <X className="w-3 h-3" /> Clear
-                    </button>
-                </div>
-            )}
-
             {/* Dashboard Content */}
             <div className="flex-grow p-8 overflow-y-auto custom-scrollbar">
                 <div className="max-w-7xl mx-auto">
@@ -462,8 +427,6 @@ const ResultsView: React.FC<{
                             <Filter className="w-12 h-12 mx-auto mb-4 opacity-20" />
                             <p>No records match the current filters.</p>
                         </div>
-                    ) : type === 'workstation' ? (
-                        <WorkstationDash metrics={metrics} />
                     ) : (
                         <MeetingDash 
                             metrics={metrics} 
@@ -641,132 +604,179 @@ const RawDataInspector = ({ ids, allRecords, onClose }: { ids: string[], allReco
     );
 };
 
-const WorkstationDash = ({ metrics }: { metrics: any }) => (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in slide-in-from-bottom-4 duration-500">
-        <div className="col-span-1 lg:col-span-2 grid grid-cols-3 gap-6">
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm"><div className="text-xs font-bold text-slate-400 uppercase">Avg Occupancy</div><div className="text-3xl font-bold text-indigo-600 mt-2">{metrics.avgOccupancy.toFixed(0)}%</div></div>
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm"><div className="text-xs font-bold text-slate-400 uppercase">Peak Occupancy</div><div className="text-3xl font-bold text-rose-500 mt-2">{metrics.peakOccupancy.toFixed(0)}%</div></div>
-            <div className="bg-slate-50 p-6 rounded-xl border border-slate-200"><div className="flex gap-2 items-start text-xs text-slate-600"><Info className="w-4 h-4 text-indigo-500 flex-shrink-0" /><p><strong>Insight:</strong> {metrics.avgOccupancy < 50 ? "Low utilization suggests opportunity for desk sharing or consolidation." : "High utilization indicates steady demand."}</p></div></div>
-        </div>
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-80"><h3 className="text-xs font-bold text-slate-500 uppercase mb-4">Occupancy Profile (Time)</h3><ResponsiveContainer width="100%" height="100%"><LineChart data={metrics.occupancyByTime}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="time" tick={{fontSize: 10}} /><YAxis unit="%" tick={{fontSize: 10}} /><Tooltip /><Line type="monotone" dataKey="rate" stroke={MM_PALETTE.primary} strokeWidth={3} dot={{r:4}} /></LineChart></ResponsiveContainer></div>
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-80"><h3 className="text-xs font-bold text-slate-500 uppercase mb-4">Occupancy by Floor</h3><ResponsiveContainer width="100%" height="100%"><BarChart data={metrics.occupancyByFloor} layout="vertical"><CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" unit="%" hide /><YAxis type="category" dataKey="floor" tick={{fontSize: 11}} width={50} /><Tooltip /><Bar dataKey="rate" fill={MM_PALETTE.program[0]} radius={[0, 4, 4, 0]} barSize={20} label={{ position: 'right', fontSize: 10, fill: '#64748b', formatter: (v: number) => `${v.toFixed(0)}%` }} /></BarChart></ResponsiveContainer></div>
-    </div>
-);
+// --- NEW COMPONENT: CAPACITY FIT BAR ---
+const CapacityFitBar = ({ row }: { row: RoomPerformanceMetric }) => {
+    const [showExplain, setShowExplain] = useState(false);
 
-const RoomRow = ({ room, onUpdateCapacity, onDrillDown }: { room: RoomPerformanceMetric, onUpdateCapacity: (f: string, r: string, c: number) => void, onDrillDown: (t: string, e: MeetingEvent[], c?: string) => void, key?: React.Key }) => {
-    const [expanded, setExpanded] = useState(false);
-    const [isEditing, setIsEditing] = useState(false);
-    const [inputValue, setInputValue] = useState(room.capacity?.toString() || '');
+    if (!row.capacity || row.capacity === 0) {
+        return <div className="text-xs text-slate-400 italic">Set capacity to evaluate fit.</div>;
+    }
 
-    useEffect(() => { if (!isEditing) setInputValue(room.capacity > 0 ? room.capacity.toString() : ''); }, [room.capacity, isEditing]);
+    // 1. Prepare Data for Bins (Observed Meeting Sizes Only)
+    const granularSegments = row.sizeBreakdown.map(sb => ({
+        label: `${sb.size}p`,
+        pct: sb.occupancyPct,
+        count: sb.count,
+        size: sb.size
+    })).filter(s => s.pct > 0);
 
-    const handleStartEdit = () => { setInputValue(room.capacity > 0 ? room.capacity.toString() : ''); setIsEditing(true); };
-    const handleSave = () => { const val = parseInt(inputValue); if (!isNaN(val) && val > 0) onUpdateCapacity(room.floor, room.roomName, val); else if (inputValue === '') onUpdateCapacity(room.floor, room.roomName, 0); setIsEditing(false); };
-    const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === 'Enter') handleSave(); };
+    // Color Logic (Neutral Gradient)
+    const getColor = (size: number) => {
+        if (size <= 1) return 'bg-slate-200';
+        if (size <= 2) return 'bg-slate-300';
+        if (size <= 4) return 'bg-indigo-200';
+        if (size <= 6) return 'bg-indigo-300';
+        if (size <= 10) return 'bg-indigo-400';
+        return 'bg-indigo-500';
+    };
+
+    // 2. Status Configuration
+    const getStatusConfig = (status: string) => {
+        if (status.includes('Under')) return { class: 'bg-blue-50 text-blue-700 border-blue-200', icon: ArrowDown };
+        if (status.includes('Reasonably') || status.includes('Well')) return { class: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle };
+        if (status.includes('Over')) return { class: 'bg-rose-50 text-rose-700 border-rose-200', icon: AlertTriangle };
+        return { class: 'bg-amber-50 text-amber-700 border-amber-200', icon: MoreHorizontal };
+    };
     
-    const getStatusColor = (status: string) => {
-        if (status.includes('Under')) return 'bg-blue-50 text-blue-700 border-blue-200';
-        if (status.includes('Over')) return 'bg-rose-50 text-rose-700 border-rose-200';
-        if (status.includes('Reasonable') || status.includes('Well')) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-        return 'bg-slate-100 text-slate-600 border-slate-200';
-    };
+    const config = getStatusConfig(row.classification);
+    const StatusIcon = config.icon;
 
-    const granularSegments = room.sizeBreakdown.map(sb => ({ label: `${sb.size}p`, pct: sb.occupancyPct, count: sb.count, size: sb.size })).filter(s => s.pct > 0);
-    const getColor = (size: number) => { if (size <= 1) return 'bg-slate-200'; if (size <= 2) return 'bg-slate-300'; if (size <= 4) return 'bg-indigo-200'; if (size <= 6) return 'bg-indigo-300'; if (size <= 10) return 'bg-indigo-400'; return 'bg-indigo-500'; };
+    // Explanation Logic
+    let explanation = "";
+    if (row.classification.includes('Underutilized')) explanation = "Most meetings occur well below room capacity.";
+    else if (row.classification.includes('Over')) explanation = "Meetings frequently approach or exceed room capacity.";
+    else if (row.classification.includes('Reasonably')) explanation = "Room usage generally aligns with its designed capacity.";
+    else explanation = "Meeting size patterns vary significantly and require review.";
 
-    // Use analysis object if available, otherwise fallback
-    const analysis = room.analysis || {
-        avgOccRaw: room.avgOccupancy,
-        avgOccRounded: Math.round(room.avgOccupancy),
-        avgRatio: room.capacity > 0 ? room.avgOccupancy / room.capacity : 0,
-        typicalBin: 'N/A',
-        typicalTypeVal: 0,
-        typicalRounded: 0,
-        typicalRatio: 0,
-        statusRule: 'Legacy Calculation'
-    };
+    // Derived Thresholds for Explanation Panel
+    const C = Math.round(row.capacity);
+    const half = Math.round(0.5 * C);
+    const seventy = Math.round(0.7 * C);
+    const eighty = Math.round(0.8 * C);
+    
+    // Parse Primary Size
+    const primarySize = parseInt(row.topMeetingSize.split('p')[0]) || 0;
 
     return (
-        <>
-            <tr className={`hover:bg-slate-50 transition-colors ${expanded ? 'bg-slate-50' : 'bg-white'}`}>
-                <td className="px-6 py-4 text-slate-600 text-xs border-b border-slate-50">{room.floor}</td>
-                <td className="px-4 py-4 border-b border-slate-50"><div className="font-bold text-slate-700 text-sm">{room.roomName}</div><div className="text-[10px] text-slate-400">{room.roomType}</div></td>
-                <td className="px-4 py-4 text-center border-b border-slate-50">
-                    {isEditing ? (
-                        <input type="number" autoFocus className="w-16 p-1 text-center border border-indigo-300 rounded text-xs bg-white focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyDown} />
-                    ) : (
-                        <div onClick={handleStartEdit} className="cursor-pointer group flex justify-center">{room.capacity > 0 ? <span className="text-sm font-mono text-slate-600 border-b border-transparent group-hover:border-indigo-300 group-hover:text-indigo-600 transition-all px-1">{room.capacity} pax</span> : <button className="text-[10px] bg-slate-100 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 font-bold px-2 py-1 rounded border border-slate-200 hover:border-indigo-200 transition-colors">Set</button>}</div>
-                    )}
-                </td>
-                <td className="px-4 py-4 text-center font-bold text-slate-700 border-b border-slate-50">{room.utilizationPct.toFixed(0)}%</td><td className="px-4 py-4 text-center font-mono text-slate-600 border-b border-slate-50">{room.avgOccupancy.toFixed(1)}</td><td className="px-4 py-4 border-b border-slate-50"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${getStatusColor(room.classification)}`}>{room.classification.split('/')[0].trim()}</span></td><td className="px-4 py-4 text-center border-b border-slate-50"><button onClick={() => setExpanded(!expanded)} className="p-1 hover:bg-slate-200 rounded-full text-slate-400 transition-colors">{expanded ? <ChevronUp className="w-4 h-4"/> : <ChevronDown className="w-4 h-4"/>}</button></td>
-            </tr>
-            {expanded && (
-                <tr>
-                    <td colSpan={7} className="px-6 py-4 bg-slate-50 border-b border-slate-200 shadow-inner">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in slide-in-from-top-1">
-                            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center gap-4"><h4 className="text-xs font-bold text-slate-400 uppercase">Room Snapshot</h4><div className="grid grid-cols-3 gap-2 text-center"><div><div className="text-lg font-bold text-slate-700">{room.occupiedSlots}</div><div className="text-[9px] text-slate-400">Total Meetings</div></div><div><div className="text-lg font-bold text-indigo-600">{room.utilizationPct.toFixed(0)}%</div><div className="text-[9px] text-slate-400">Utilization</div></div><div><div className="text-lg font-bold text-slate-700">{room.avgOccupancy.toFixed(1)}</div><div className="text-[9px] text-slate-400">Avg Occ</div></div></div></div>
-                            
-                            {/* Card 2: Capacity Fit (DETAILED) */}
-                            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
-                                <div className="flex justify-between items-start border-b border-slate-50 pb-2 mb-1">
-                                    <h4 className="text-xs font-bold text-slate-400 uppercase">Fit Analysis</h4>
-                                    <div className="text-[10px] text-slate-500">
-                                        Capacity: <strong>{room.capacity || '?'} pax</strong>
-                                    </div>
-                                </div>
-                                {room.capacity > 0 ? (
-                                    <>
-                                        <div className="grid grid-cols-3 gap-2 text-xs mb-2">
-                                            <div className="text-slate-400 font-medium">Metric</div>
-                                            <div className="text-right text-slate-400 font-medium">Value</div>
-                                            <div className="text-right text-slate-400 font-medium">% Cap</div>
-                                            
-                                            <div className="text-slate-700 font-bold">Average</div>
-                                            <div className="text-right font-mono text-slate-600">{analysis.avgOccRaw.toFixed(1)} <span className="text-slate-400">≈ {analysis.avgOccRounded}</span></div>
-                                            <div className="text-right font-bold text-indigo-600">{(analysis.avgRatio * 100).toFixed(0)}%</div>
-
-                                            <div className="text-slate-700 font-bold">Typical</div>
-                                            <div className="text-right font-mono text-slate-600">{analysis.typicalBin} <span className="text-slate-400">≈ {analysis.typicalRounded}</span></div>
-                                            <div className="text-right font-bold text-indigo-600">{(analysis.typicalRatio * 100).toFixed(0)}%</div>
-                                        </div>
-                                        <div className="mt-auto bg-slate-50 p-2 rounded border border-slate-100 text-[10px] flex items-start gap-2">
-                                            <Info className="w-3 h-3 text-slate-400 mt-0.5 flex-shrink-0" />
-                                            <div>
-                                                <span className="font-bold text-slate-500 uppercase">Logic:</span>
-                                                <span className="text-slate-600 ml-1">{analysis.statusRule}</span>
-                                            </div>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className="flex-grow flex flex-col items-center justify-center text-center p-4 bg-amber-50 rounded border border-amber-100 border-dashed">
-                                        <AlertTriangle className="w-5 h-5 text-amber-400 mb-2" />
-                                        <p className="text-xs text-amber-700 font-medium">Set capacity above to evaluate fit.</p>
-                                    </div>
-                                )}
+        <div className="flex flex-col gap-4 w-full relative">
+            
+            {/* Header: Status (Conclusion) */}
+            <div className="flex flex-col gap-1">
+                <div className="flex justify-between items-center">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border flex items-center gap-1.5 ${config.class}`}>
+                        <StatusIcon className="w-3 h-3" />
+                        {row.classification}
+                    </span>
+                    <button 
+                        onClick={() => setShowExplain(!showExplain)} 
+                        className={`p-1 rounded hover:bg-slate-100 ${showExplain ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400'}`}
+                        title="Explain Logic"
+                    >
+                        <Info className="w-3 h-3" />
+                    </button>
+                </div>
+                
+                {/* Explain Panel (Toggle) */}
+                {showExplain && (
+                    <div className="bg-slate-50 border border-slate-200 rounded p-3 text-[10px] space-y-2 animate-in fade-in slide-in-from-top-1 mt-1">
+                        <div className="grid grid-cols-3 gap-2 border-b border-slate-200 pb-2">
+                            <div>
+                                <span className="block text-slate-400 uppercase font-bold">Capacity</span>
+                                <span className="font-mono font-bold text-slate-700">{C} pax</span>
                             </div>
-
-                            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col"><h4 className="text-xs font-bold text-slate-400 uppercase mb-3 flex justify-between items-center"><span>Size Breakdown</span><button onClick={() => onDrillDown(`Events in ${room.roomName}`, room.sizeBreakdown.flatMap(s => s.events), room.classification)} className="text-[9px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded flex items-center gap-1"><Eye className="w-3 h-3" /> View All Events</button></h4><div className="flex-grow overflow-y-auto max-h-24 pr-1 custom-scrollbar"><table className="w-full text-xs text-left"><thead className="text-slate-400 border-b border-slate-100"><tr><th className="font-normal pb-1">Size</th><th className="font-normal pb-1 text-right">Count</th><th className="font-normal pb-1 text-right">%</th></tr></thead><tbody className="text-slate-600">{room.sizeBreakdown.map((sb, i) => (<tr key={i} className="border-b border-slate-50 last:border-0"><td className="py-1">{sb.size} pax</td><td className="py-1 text-right">{sb.count}</td><td className="py-1 text-right font-medium">{sb.occupancyPct.toFixed(0)}%</td></tr>))}</tbody></table></div></div>
+                            <div>
+                                <span className="block text-slate-400 uppercase font-bold">Primary</span>
+                                <span className="font-mono font-bold text-slate-700">{primarySize} pax</span>
+                            </div>
+                            <div>
+                                <span className="block text-slate-400 uppercase font-bold">Avg Occ</span>
+                                <span className="font-mono font-bold text-slate-700">{row.avgOccupancy.toFixed(1)} pax</span>
+                            </div>
                         </div>
-                    </td>
-                </tr>
-            )}
-        </>
-    )
-}
+                        <div className="space-y-1">
+                            <span className="block text-slate-400 uppercase font-bold">Logic Applied</span>
+                            <div className="flex justify-between items-center bg-white px-2 py-1 rounded border border-slate-100 text-slate-500">
+                                <span>&lt; {half} pax</span>
+                                <span>Underutilized</span>
+                            </div>
+                            <div className="flex justify-between items-center bg-white px-2 py-1 rounded border border-slate-100 text-slate-500">
+                                <span>{half}–{seventy} pax</span>
+                                <span>Reasonable</span>
+                            </div>
+                            <div className="flex justify-between items-center bg-white px-2 py-1 rounded border border-slate-100 text-slate-500">
+                                <span>&gt; {eighty} pax</span>
+                                <span>Over Utilized</span>
+                            </div>
+                        </div>
+                        <div className="pt-1 text-slate-500 italic">
+                            Values are rounded before comparison. Primary size or Avg Occ must trigger threshold.
+                        </div>
+                    </div>
+                )}
 
-// --- CONCURRENCY CARD (REFACTORED) ---
+                {!showExplain && (
+                    <div className="text-[10px] text-slate-500 italic">
+                        {explanation}
+                    </div>
+                )}
+            </div>
+
+            {/* The Visualization: Evidence (Distribution Bar) */}
+            <div className="relative h-8 w-full mt-1">
+                <div className="absolute inset-0 flex rounded-md overflow-hidden h-full border border-white bg-slate-50">
+                    {granularSegments.map((seg, i) => (
+                        <div 
+                            key={i}
+                            style={{ width: `${seg.pct}%` }}
+                            className={`${getColor(seg.size)} h-full border-r border-white last:border-0 relative group flex items-center justify-center transition-colors hover:brightness-95`}
+                            title={`${seg.label}: ${seg.pct.toFixed(1)}%`}
+                        >
+                            {seg.pct > 8 && (
+                                <span className="text-[9px] font-bold text-slate-700 opacity-80 whitespace-nowrap px-1">
+                                    {seg.label}
+                                </span>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Footer: Context & Legend */}
+            <div className="flex flex-col gap-2">
+                {/* Context Metrics (Plain Text) */}
+                <div className="text-[10px] text-slate-500 font-medium flex gap-3 border-b border-slate-100 pb-2">
+                    <span>Room Capacity: <strong className="text-slate-700">{row.capacity} pax</strong></span>
+                    <span className="text-slate-300">|</span>
+                    <span>Avg Occupancy: <strong className="text-slate-700">{row.avgOccupancy.toFixed(1)} pax</strong></span>
+                </div>
+
+                {/* Legend (Observed Sizes Only) */}
+                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                    {granularSegments.map((seg, i) => (
+                        <div key={i} className="flex items-center gap-1">
+                            <div className={`w-2 h-2 rounded-full ${getColor(seg.size)}`}></div>
+                            <span className="text-[9px] text-slate-400 font-medium">{seg.label} ({seg.pct.toFixed(0)}%)</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- NEW COMPONENT: CONCURRENCY CARD ---
 const ConcurrencyCard = ({ 
     stats, 
+    totalRooms, 
     roomTypes, 
     selectedType, 
-    onSelectType,
-    activeTotalRooms
+    onSelectType 
 }: { 
     stats: { avgPct: number, maxPct: number, timeline: ConcurrencyMetric[], uniqueRoomsCount: number }, 
+    totalRooms: number, // Legacy context total
     roomTypes: string[],
     selectedType: string,
-    onSelectType: (t: string) => void,
-    activeTotalRooms: number
+    onSelectType: (t: string) => void
 }) => {
     const [chartColors, setChartColors] = useState({ bar: '#cbd5e1', highlight: '#f43f5e', line: '#6366f1' });
     const [showColorPicker, setShowColorPicker] = useState(false);
@@ -777,9 +787,13 @@ const ConcurrencyCard = ({
 
     if (!stats || !stats.timeline) return null;
 
-    const avgRoomsInUse = Math.round((stats.avgPct / 100) * activeTotalRooms);
-    const maxRoomsInUse = Math.round((stats.maxPct / 100) * activeTotalRooms);
-    const title = selectedType === 'All Rooms' ? 'OVERALL ROOM OCCUPANCY (CONCURRENCY)' : `${selectedType.toUpperCase()} OCCUPANCY (CONCURRENCY)`;
+    // Calculate approximate room counts for context
+    const avgRoomsInUse = Math.round((stats.avgPct / 100) * stats.uniqueRoomsCount);
+    const maxRoomsInUse = Math.round((stats.maxPct / 100) * stats.uniqueRoomsCount);
+
+    const title = selectedType === 'All Rooms' 
+        ? 'OVERALL ROOM OCCUPANCY (CONCURRENCY)' 
+        : `${selectedType.toUpperCase()} OCCUPANCY (CONCURRENCY)`;
 
     const handleSaveColors = (newColors: any) => { setChartColors(newColors); localStorage.setItem('mm_chart_colors', JSON.stringify(newColors)); };
     const handleResetColors = () => { handleSaveColors({ bar: '#cbd5e1', highlight: '#f43f5e', line: '#6366f1' }); };
@@ -805,14 +819,24 @@ const ConcurrencyCard = ({
     };
 
     return (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col md:flex-row gap-8 relative">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-8 flex flex-col md:flex-row gap-8 relative">
+            {/* Left: Summary Metrics */}
             <div className="md:w-1/3 flex flex-col justify-center space-y-6">
                 <div>
-                    <div className="flex justify-between items-start mb-2"><h3 className="text-xs font-bold text-slate-500 uppercase">{title}</h3></div>
-                    <div className="relative group w-full mb-4">
-                        <select className="w-full appearance-none bg-slate-50 border border-slate-200 text-sm font-bold text-slate-700 py-2 pl-3 pr-8 rounded-lg hover:border-indigo-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer" value={selectedType} onChange={(e) => onSelectType(e.target.value)}>{roomTypes.map(t => <option key={t} value={t}>{t}</option>)}</select>
-                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
+                    <div className="flex justify-between items-start mb-2">
+                        <h3 className="text-xs font-bold text-slate-500 uppercase">{title}</h3>
+                        <div className="relative group">
+                            <select 
+                                className="appearance-none bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 py-1 pl-2 pr-6 rounded-md hover:border-indigo-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer max-w-[140px] truncate"
+                                value={selectedType}
+                                onChange={(e) => onSelectType(e.target.value)}
+                            >
+                                {roomTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                            <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 top-1.5 pointer-events-none" />
+                        </div>
                     </div>
+                    <p className="text-xs text-slate-500 mb-6">Based on concurrent usage across all observed time slots.</p>
                     <div className="flex items-center gap-2 mb-6">
                         <div className="relative">
                             <button onClick={() => setShowDownloadMenu(!showDownloadMenu)} className="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-500 hover:text-indigo-600 transition-colors" title="Download"><Download className="w-4 h-4" /></button>
@@ -824,301 +848,443 @@ const ConcurrencyCard = ({
                         </div>
                     </div>
                 </div>
-                <div className="grid grid-cols-1 gap-4">
-                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex justify-between items-center"><span className="text-xs font-bold text-slate-500 uppercase">Total Rooms</span><span className="text-xl font-bold text-slate-800">{activeTotalRooms}</span></div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-100"><div className="text-xs font-bold text-slate-400 uppercase mb-1">Avg Occupied</div><div className="text-2xl font-bold text-indigo-600">{stats.avgPct.toFixed(1)}%</div><div className="text-[10px] font-medium text-slate-400 mt-1 leading-tight">≈ {avgRoomsInUse} in use</div></div>
-                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-100"><div className="text-xs font-bold text-slate-400 uppercase mb-1">Max Occupied</div><div className="text-2xl font-bold text-rose-500">{stats.maxPct.toFixed(1)}%</div><div className="text-[10px] font-medium text-slate-400 mt-1 leading-tight">≈ {maxRoomsInUse} in use</div></div>
+                
+                <div className="grid grid-cols-2 gap-6">
+                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                        <div className="text-xs font-bold text-slate-400 uppercase mb-1">Average Occupied %</div>
+                        <div className="text-2xl font-bold text-indigo-600">{stats.avgPct.toFixed(1)}%</div>
+                        <div className="text-xs font-medium text-slate-500 mt-1">≈ {avgRoomsInUse} rooms in use</div>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                        <div className="text-xs font-bold text-slate-400 uppercase mb-1">Max Occupied %</div>
+                        <div className="text-2xl font-bold text-rose-500">{stats.maxPct.toFixed(1)}%</div>
+                        <div className="text-xs font-medium text-slate-500 mt-1">≈ {maxRoomsInUse} rooms in use</div>
                     </div>
                 </div>
             </div>
-            <div className="md:w-2/3 flex flex-col" ref={chartRef}>
-                <div className="h-64 relative">
-                    {stats.timeline.length > 0 ? (
-                        <>
-                            <div className="absolute top-0 right-4 z-10 px-3 py-1 rounded-full text-xs font-bold shadow-sm border bg-white flex items-center gap-2" style={{ borderColor: chartColors.line, color: chartColors.line }}><div className="w-2 h-2 rounded-full" style={{ backgroundColor: chartColors.line }} />Avg {stats.avgPct.toFixed(1)}%</div>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={stats.timeline} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="time" tick={{ fontSize: 10 }} interval="preserveStartEnd" minTickGap={30} /><YAxis unit="%" tick={{ fontSize: 10 }} domain={[0, 100]} />
-                                    <Tooltip content={({ active, payload, label }) => { if (active && payload && payload.length) { const data = payload[0].payload as ConcurrencyMetric; return (<div className="bg-white p-2 border border-slate-200 rounded shadow-lg text-xs"><div className="font-bold text-slate-800 mb-1">{label}</div><div className="text-indigo-600 font-bold">{data.pct.toFixed(1)}% Occupied</div><div className="text-slate-500">{data.occupied} / {data.total} Rooms Observed</div></div>); } return null; }} />
-                                    <ReferenceLine y={stats.avgPct} stroke={chartColors.line} strokeDasharray="3 3" />
-                                    <Bar dataKey="pct" fill={chartColors.bar} radius={[2, 2, 0, 0]}>{stats.timeline.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.pct === stats.maxPct ? chartColors.highlight : chartColors.bar} />))}</Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </>
-                    ) : ( <div className="w-full h-full flex flex-col items-center justify-center text-slate-300 border-2 border-dashed border-slate-100 rounded-xl"><BarChart2 className="w-8 h-8 mb-2" /><p className="text-xs">No occupied observations for selected room type.</p></div> )}
-                </div>
-                {stats.timeline.length > 0 && (<div className="flex items-center justify-center gap-6 mt-4 text-[10px] text-slate-500 font-medium"><div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{ backgroundColor: chartColors.bar }} /><span>Occupied</span></div><div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{ backgroundColor: chartColors.highlight }} /><span>Peak</span></div><div className="flex items-center gap-1.5"><div className="w-4 h-0.5 border-t-2 border-dashed" style={{ borderColor: chartColors.line }} /><span>Average</span></div></div>)}
+
+            {/* Right: Chart */}
+            <div className="md:w-2/3 h-64" ref={chartRef}>
+                {stats.timeline.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={stats.timeline} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis 
+                                dataKey="time" 
+                                tick={{ fontSize: 10 }} 
+                                interval="preserveStartEnd" 
+                                minTickGap={30}
+                            />
+                            <YAxis 
+                                unit="%" 
+                                tick={{ fontSize: 10 }} 
+                                domain={[0, 100]} 
+                            />
+                            <Tooltip 
+                                content={({ active, payload, label }) => {
+                                    if (active && payload && payload.length) {
+                                        const data = payload[0].payload as ConcurrencyMetric;
+                                        return (
+                                            <div className="bg-white p-2 border border-slate-200 rounded shadow-lg text-xs">
+                                                <div className="font-bold text-slate-800 mb-1">{label}</div>
+                                                <div className="text-indigo-600 font-bold">{data.pct.toFixed(1)}% Occupied</div>
+                                                <div className="text-slate-500">
+                                                    {data.occupied} / {data.total} Rooms Observed
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                }}
+                            />
+                            <ReferenceLine y={stats.avgPct} stroke={chartColors.line} strokeDasharray="3 3" label={{ value: 'Avg', position: 'insideTopRight', fill: '#6366f1', fontSize: 10 }} />
+                            <Bar dataKey="pct" fill={chartColors.bar} radius={[2, 2, 0, 0]}>
+                                {stats.timeline.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.pct === stats.maxPct ? chartColors.highlight : chartColors.bar} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-300 border-2 border-dashed border-slate-100 rounded-xl">
+                        <BarChart2 className="w-8 h-8 mb-2" />
+                        <p className="text-xs">No occupied observations for selected room type.</p>
+                    </div>
+                )}
             </div>
         </div>
     );
 };
 
-// --- NEW COMPONENT: MEETING SIZE DISTRIBUTION CARD ---
-const MeetingSizeCard = ({ metrics }: { metrics: UtilizationMetrics }) => {
-    const [palette, setPalette] = useState(MM_PALETTE.program);
-    const [showColorPicker, setShowColorPicker] = useState(false);
-    const chartRef = useRef<HTMLDivElement>(null);
-
-    const downloadCSV = () => {
-        const header = ['Size Group', 'Count', 'Occupancy %'];
-        const rows = metrics.globalSizeBins.map(b => [b.label, b.count, b.occupancyPct.toFixed(1)]);
-        const csvContent = "data:text/csv;charset=utf-8," + [header.join(','), ...rows.map(r => r.join(','))].join('\n');
-        const link = document.createElement("a"); link.setAttribute("href", encodeURI(csvContent)); link.setAttribute("download", `meeting_size_dist.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link);
-    };
-
-    const downloadPNG = () => {
-        if (!chartRef.current) return;
-        const svg = chartRef.current.querySelector('svg'); if (!svg) return;
-        const serializer = new XMLSerializer(); const source = serializer.serializeToString(svg);
-        const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' }); const url = URL.createObjectURL(blob);
-        const canvas = document.createElement('canvas'); canvas.width = 800; canvas.height = 600;
-        const ctx = canvas.getContext('2d'); if (!ctx) return;
-        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        const img = new Image();
-        img.onload = () => { ctx.drawImage(img, 50, 50, 700, 500); const pngUrl = canvas.toDataURL("image/png"); const link = document.createElement('a'); link.download = `meeting_size_dist.png`; link.href = pngUrl; link.click(); URL.revokeObjectURL(url); };
-        img.src = url;
-    };
-
-    // Calculate Typical
-    const typicalBin = metrics.globalSizeBins.reduce((prev, current) => (prev.count > current.count) ? prev : current, metrics.globalSizeBins[0]);
+// --- NEW COMPONENT: OVERALL MEETING SUMMARY ---
+const OverallMeetingSummary = ({ metrics }: { metrics: any }) => {
+    const data = metrics.globalSizeBins;
     
-    // Custom Label for Outside
-    const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name, value }: any) => {
-        if (percent < 0.05) return null; 
-        const RADIAN = Math.PI / 180;
-        const radius = outerRadius + 20;
-        const x = cx + radius * Math.cos(-midAngle * RADIAN);
-        const y = cy + radius * Math.sin(-midAngle * RADIAN);
-        
-        return (
-            <text x={x} y={y} fill="#64748b" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={10} fontWeight="bold">
-                {`${name} · ${value} · ${(percent * 100).toFixed(0)}%`}
-            </text>
-        );
-    };
+    // Transform for Recharts
+    const chartData = data.map((d: GlobalSizeBin) => ({
+        name: d.label,
+        value: d.count,
+        pct: d.occupancyPct,
+        fill: d.label.includes('12p') ? MM_PALETTE.program[5] 
+            : d.label.includes('8-11') ? MM_PALETTE.program[2]
+            : d.label.includes('5-7') ? MM_PALETTE.program[1]
+            : d.label.includes('3-4') ? MM_PALETTE.program[3]
+            : MM_PALETTE.program[0]
+    }));
 
     return (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 h-full flex flex-col relative group">
-            <div className="flex justify-between items-start mb-6">
-                <div>
-                    <h3 className="text-xs font-bold text-slate-500 uppercase">Meeting Size Distribution</h3>
-                    <p className="text-[10px] text-slate-400 mt-1">Occupancy % by bucket (Attendees &gt; 0)</p>
-                </div>
-                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={downloadCSV} className="p-1.5 bg-slate-50 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600" title="CSV"><FileText className="w-3 h-3" /></button>
-                    <button onClick={downloadPNG} className="p-1.5 bg-slate-50 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600" title="PNG"><ImageIcon className="w-3 h-3" /></button>
-                    <button onClick={() => setShowColorPicker(!showColorPicker)} className="p-1.5 bg-slate-50 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600" title="Colors"><Palette className="w-3 h-3" /></button>
-                </div>
-            </div>
-
-            {showColorPicker && (
-                <div className="absolute top-14 right-6 bg-white border border-slate-200 shadow-xl rounded-lg p-3 z-20 grid grid-cols-3 gap-2">
-                    {palette.map((c, i) => (
-                        <input key={i} type="color" value={c} onChange={(e) => { const newP = [...palette]; newP[i] = e.target.value; setPalette(newP); }} className="w-6 h-6 rounded cursor-pointer border-0 p-0" />
-                    ))}
-                </div>
-            )}
-
-            <div className="flex-grow flex flex-col md:flex-row items-center gap-8">
-                <div className="w-full md:w-3/5 h-64 relative" ref={chartRef}>
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-8 flex flex-col md:flex-row gap-8">
+            {/* Left: Chart */}
+            <div className="flex-1 min-w-[300px]">
+                <h3 className="text-xs font-bold text-slate-500 uppercase mb-4">Meeting Size Distribution (Occupancy %)</h3>
+                <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
                         <RePieChart>
                             <Pie 
-                                data={metrics.globalSizeBins} 
-                                dataKey="count" 
-                                nameKey="label" 
-                                cx="50%" cy="50%" 
+                                data={chartData} 
+                                dataKey="pct" 
+                                nameKey="name" 
                                 innerRadius={60} 
                                 outerRadius={80} 
                                 paddingAngle={2}
-                                label={renderCustomLabel}
                             >
-                                {metrics.globalSizeBins.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={palette[index % palette.length]} stroke="none" />
+                                {chartData.map((entry: any, index: number) => (
+                                    <Cell key={`cell-${index}`} fill={entry.fill} stroke="none" />
                                 ))}
+                                <LabelList 
+                                    dataKey="name" 
+                                    position="outside" 
+                                    style={{ fontSize: 10, fill: '#64748b', fontWeight: 'bold' }} 
+                                />
                             </Pie>
-                            <Tooltip />
+                            <Tooltip 
+                                formatter={(val: number, name: string, props: any) => [
+                                    `${val.toFixed(1)}% (${props.payload.value} mtgs)`, 
+                                    name
+                                ]}
+                                contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
+                            />
+                            <Legend 
+                                verticalAlign="bottom" 
+                                height={36} 
+                                iconType="circle" 
+                                wrapperStyle={{ fontSize: '11px', fontWeight: 600, color: '#475569' }} 
+                            />
                         </RePieChart>
                     </ResponsiveContainer>
-                    {/* Center Label */}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-slate-700">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">Total Meetings</span>
-                        <span className="text-2xl font-bold">{metrics.roomMetrics.reduce((s,r) => s+r.occupiedSlots, 0)}</span>
-                        {typicalBin && <span className="text-[9px] text-slate-400 mt-1">Typical: <span className="font-bold text-slate-600">{typicalBin.label}</span></span>}
-                    </div>
                 </div>
+            </div>
 
-                <div className="w-full md:w-2/5 overflow-hidden">
-                    <table className="w-full text-xs text-left">
-                        <thead className="text-slate-400 border-b border-slate-100 font-semibold uppercase">
+            {/* Middle: Stats Table */}
+            <div className="flex-1">
+                <h3 className="text-xs font-bold text-slate-500 uppercase mb-4">Global Distribution</h3>
+                <div className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
+                    <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-100 border-b border-slate-200 text-slate-500 font-bold uppercase">
                             <tr>
-                                <th className="pb-2 pl-2">Size</th>
-                                <th className="pb-2 text-right">Count</th>
-                                <th className="pb-2 pr-2 text-right">Occ %</th>
+                                <th className="px-4 py-2">Size</th>
+                                <th className="px-4 py-2 text-right">Count</th>
+                                <th className="px-4 py-2 text-right">Occupancy %</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-50 text-slate-600">
-                            {metrics.globalSizeBins.map((bin, i) => (
-                                <tr key={i} className="hover:bg-slate-50">
-                                    <td className="py-2 pl-2 flex items-center gap-2">
-                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: palette[i % palette.length] }} />
-                                        {bin.label}
-                                    </td>
-                                    <td className="py-2 text-right font-mono">{bin.count}</td>
-                                    <td className="py-2 pr-2 text-right font-bold text-slate-700">{bin.occupancyPct.toFixed(1)}%</td>
+                        <tbody className="divide-y divide-slate-200">
+                            {data.map((bin: GlobalSizeBin) => (
+                                <tr key={bin.label}>
+                                    <td className="px-4 py-2 font-medium text-slate-700">{bin.label}</td>
+                                    <td className="px-4 py-2 text-right text-slate-500">{bin.count}</td>
+                                    <td className="px-4 py-2 text-right font-bold text-indigo-600">{bin.occupancyPct.toFixed(1)}%</td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
             </div>
+
+            {/* Right: Insights */}
+            <div className="flex-1 bg-indigo-50 rounded-xl border border-indigo-100 p-5">
+                <h3 className="text-xs font-bold text-indigo-800 uppercase mb-3 flex items-center gap-2">
+                    <Lightbulb className="w-4 h-4 text-indigo-600" /> Work Behaviors
+                </h3>
+                <ul className="space-y-3">
+                    {metrics.globalInsights.map((insight: string, i: number) => (
+                        <li key={i} className="flex gap-2 text-xs text-indigo-900 leading-relaxed">
+                            <ArrowRight className="w-3 h-3 text-indigo-400 mt-0.5 flex-shrink-0" />
+                            {insight}
+                        </li>
+                    ))}
+                </ul>
+            </div>
         </div>
     );
 };
 
-// --- NEW COMPONENT: WORK BEHAVIORS CARD ---
-const WorkBehaviorsCard = ({ insights }: { insights: string[] }) => (
-    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-full flex flex-col">
-        <h3 className="text-xs font-bold text-slate-500 uppercase mb-4 flex items-center gap-2">
-            <Lightbulb className="w-4 h-4 text-amber-500" /> Work Behaviors
-        </h3>
-        <div className="flex-grow">
-            {insights.length > 0 ? (
-                <ul className="space-y-4">
-                    {insights.map((insight, i) => (
-                        <li key={i} className="flex gap-3 text-xs text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100 items-start">
-                            <ArrowRight className="w-3 h-3 text-slate-400 flex-shrink-0 mt-0.5" />
-                            <span className="leading-snug">{insight}</span>
-                        </li>
-                    ))}
-                </ul>
-            ) : (
-                <div className="text-xs text-slate-400 italic text-center py-10">No specific behavioral patterns detected.</div>
-            )}
-        </div>
-    </div>
-);
+const MeetingDash = ({ metrics, records, onUpdateCapacity, onDrillDown }: { metrics: any, records: ObservationRecord[], onUpdateCapacity: (f: string, r: string, c: number) => void, onDrillDown: (title: string, events: MeetingEvent[], context?: string) => void }) => {
+    const [sortField, setSortField] = useState<keyof RoomPerformanceMetric>('utilizationPct');
+    const [sortAsc, setSortAsc] = useState(false);
+    const [expandedRoom, setExpandedRoom] = useState<string | null>(null);
+    const [statusFilter, setStatusFilter] = useState<string>('All');
+    
+    // Concurrency State
+    const [concurrencyType, setConcurrencyType] = useState('All Rooms');
 
-// --- NEW COMPONENT: OVERALL MEETING SUMMARY ---
-const MeetingDash = ({ 
-    metrics, 
-    records,
-    onUpdateCapacity, 
-    onDrillDown 
-}: { 
-    metrics: UtilizationMetrics, 
-    records: ObservationRecord[],
-    onUpdateCapacity: (floor: string, room: string, cap: number) => void,
-    onDrillDown: (title: string, events: MeetingEvent[], context?: string) => void
-}) => {
-    // Determine unique room types for the concurrency dropdown
+    // Prepare sorted data
+    const sortedData = useMemo(() => {
+        let data = [...metrics.roomMetrics];
+        
+        // Filter
+        if (statusFilter !== 'All') {
+            data = data.filter(r => {
+                if (statusFilter === 'Under') return r.classification.includes('Under');
+                if (statusFilter === 'Fit') return r.classification.includes('Reasonably') || r.classification.includes('Well');
+                if (statusFilter === 'Over') return r.classification.includes('Over');
+                if (statusFilter === 'Mixed') return r.classification.includes('Mixed') || r.classification.includes('Unclassified');
+                return true;
+            });
+        }
+
+        return data.sort((a: any, b: any) => {
+            const vA = a[sortField];
+            const vB = b[sortField];
+            return sortAsc ? (vA - vB) : (vB - vA);
+        });
+    }, [metrics.roomMetrics, sortField, sortAsc, statusFilter]);
+
+    // Concurrency Logic
     const roomTypes = useMemo(() => {
-        const types = new Set<string>(['All Rooms']);
-        records.forEach(r => { if (r.roomType) types.add(r.roomType); });
-        return Array.from(types).sort();
+        const types = new Set<string>();
+        records.forEach(r => {
+            if (r.roomType) types.add(r.roomType.trim());
+        });
+        return ['All Rooms', ...Array.from(types).sort()];
     }, [records]);
 
-    const [selectedConcurrencyType, setSelectedConcurrencyType] = useState('All Rooms');
-
-    // Filter records for concurrency stats calculation based on selected type
     const concurrencyStats = useMemo(() => {
-        const relevantRecords = selectedConcurrencyType === 'All Rooms' 
+        const activeRecords = concurrencyType === 'All Rooms' 
             ? records 
-            : records.filter(r => r.roomType === selectedConcurrencyType);
-        return calculateConcurrencyStats(relevantRecords);
-    }, [records, selectedConcurrencyType]);
+            : records.filter(r => (r.roomType || '').trim() === concurrencyType);
+        
+        return calculateConcurrencyStats(activeRecords);
+    }, [records, concurrencyType]);
 
-    // Calculate Active Total Rooms based on Selection
-    const activeTotalRooms = useMemo(() => {
-        if (selectedConcurrencyType === 'All Rooms') return metrics.totalRooms;
-        // Count unique room names in the filtered set
-        const uniqueRooms = new Set<string>();
-        records.forEach(r => {
-            if (r.roomType === selectedConcurrencyType && r.roomName) {
-                uniqueRooms.add(r.roomName);
-            }
-        });
-        return uniqueRooms.size;
-    }, [records, selectedConcurrencyType, metrics.totalRooms]);
+    // Helper for Primary Size Context
+    const getPrimarySizeContext = (row: RoomPerformanceMetric) => {
+        if (!row.sizeBreakdown || row.sizeBreakdown.length === 0) return "No data available.";
+
+        // Sort by count desc to confirm mode
+        const sorted = [...row.sizeBreakdown].sort((a,b) => b.count - a.count);
+        const mode = sorted[0];
+        
+        // 1-2p dominance check
+        const smalls = row.sizeBreakdown.filter(s => s.size <= 2);
+        const smallPct = smalls.reduce((sum, s) => sum + s.occupancyPct, 0);
+        
+        if (mode.size <= 2 && smallPct > mode.occupancyPct + 5) {
+            return `Small meetings (1–2p) account for ${smallPct.toFixed(0)}% of usage.`;
+        }
+        
+        // 3-4p dominance check
+        const mediums = row.sizeBreakdown.filter(s => s.size >= 3 && s.size <= 4);
+        const mediumPct = mediums.reduce((sum, s) => sum + s.occupancyPct, 0);
+        
+        if ((mode.size === 3 || mode.size === 4) && mediumPct > mode.occupancyPct + 5) {
+            return `3–4 pax meetings account for ${mediumPct.toFixed(0)}% of usage.`;
+        }
+
+        return "Most frequent occupancy observed.";
+    };
+
+    // Helper for Status Badge in Row
+    const getRowBadge = (status: string) => {
+        if (status.includes('Under')) return <span title={status} className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100"><ArrowDown className="w-3 h-3" /> Under</span>;
+        if (status.includes('Reasonably') || status.includes('Well')) return <span title={status} className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100"><CheckCircle className="w-3 h-3" /> Fit</span>;
+        if (status.includes('Over')) return <span title={status} className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100"><AlertTriangle className="w-3 h-3" /> Over</span>;
+        return <span title={status} className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100"><MoreHorizontal className="w-3 h-3" /> Mixed</span>;
+    };
 
     return (
         <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
             
-            {/* 1. Global KPI Cards (Top Layer) */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                    <div className="text-xs font-bold text-slate-400 uppercase">Avg Utilization</div>
-                    <div className="text-3xl font-bold text-indigo-600 mt-2">{metrics.overallUtilization.toFixed(0)}%</div>
-                    <div className="text-[10px] text-slate-400 mt-1">Of observed time slots</div>
-                </div>
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                    <div className="text-xs font-bold text-slate-400 uppercase">Avg Occupancy</div>
-                    <div className="text-3xl font-bold text-slate-800 mt-2">{metrics.overallAvgAttendees.toFixed(1)} <span className="text-sm font-medium text-slate-400">ppl</span></div>
-                    <div className="text-[10px] text-slate-400 mt-1">When room is in use</div>
-                </div>
-                 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                    <div className="text-xs font-bold text-slate-400 uppercase">Peak Concurrency</div>
-                    <div className="text-3xl font-bold text-rose-500 mt-2">{metrics.concurrencyStats?.maxPct.toFixed(0)}%</div>
-                    <div className="text-[10px] text-slate-400 mt-1">Max % of rooms used at once</div>
-                </div>
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                    <div className="text-xs font-bold text-slate-400 uppercase">Underutilized</div>
-                    <div className="text-3xl font-bold text-amber-500 mt-2">
-                        {metrics.roomMetrics.filter(r => r.classification.includes('Under')).length} <span className="text-sm font-medium text-slate-400">/ {metrics.roomMetrics.length} rms</span>
-                    </div>
-                    <div className="text-[10px] text-slate-400 mt-1">Rooms flagged for size mismatch</div>
-                </div>
-            </div>
-
-            {/* 2. Concurrency Chart (Full Width) */}
+            {/* 0. Concurrency Card (Active) */}
             <ConcurrencyCard 
                 stats={concurrencyStats} 
+                totalRooms={metrics.totalRooms} 
                 roomTypes={roomTypes}
-                selectedType={selectedConcurrencyType}
-                onSelectType={setSelectedConcurrencyType}
-                activeTotalRooms={activeTotalRooms}
+                selectedType={concurrencyType}
+                onSelectType={setConcurrencyType}
             />
 
-            {/* 3. Mid Section: Distribution & Insights */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                    <MeetingSizeCard metrics={metrics} />
-                </div>
-                <div>
-                    <WorkBehaviorsCard insights={metrics.globalInsights} />
-                </div>
-            </div>
+            {/* 1. Overall Summary Section */}
+            <OverallMeetingSummary metrics={metrics} />
 
-            {/* 4. Room-by-Room Performance Table (Reverted to Expandable List) */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-                    <h3 className="font-bold text-slate-700 flex items-center gap-2">
-                        <Layout className="w-4 h-4 text-slate-400" /> Room Performance
+            {/* 2. Room Performance Table */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                    <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                        <AlignLeft className="w-4 h-4 text-slate-500" /> Room Performance
                     </h3>
+                    
+                    {/* Status Filter */}
+                    <div className="flex items-center gap-1 bg-white border border-slate-200 p-0.5 rounded-lg">
+                        {['All', 'Under', 'Fit', 'Over', 'Mixed'].map(f => (
+                            <button
+                                key={f}
+                                onClick={() => setStatusFilter(f)}
+                                className={`px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${
+                                    statusFilter === f 
+                                    ? 'bg-indigo-50 text-indigo-700 shadow-sm' 
+                                    : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                {f}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="text-xs text-slate-400 hidden sm:block">
+                        {metrics.totalRooms} Rooms | {metrics.totalObservations} Observations
+                    </div>
                 </div>
+                
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
-                        <thead className="bg-white border-b border-slate-100 text-xs font-bold text-slate-500 uppercase">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold">
                             <tr>
-                                <th className="px-6 py-3">Location</th>
-                                <th className="px-4 py-3">Room</th>
-                                <th className="px-4 py-3 text-center">Capacity</th>
-                                <th className="px-4 py-3 text-center">Util %</th>
-                                <th className="px-4 py-3 text-center">Avg Occ</th>
-                                <th className="px-4 py-3">Status</th>
-                                <th className="px-4 py-3 w-10"></th>
+                                <th className="px-6 py-3 cursor-pointer hover:text-slate-700" onClick={() => setSortField('floor')}>Floor</th>
+                                <th className="px-6 py-3 cursor-pointer hover:text-slate-700" onClick={() => setSortField('roomName')}>Room Name</th>
+                                <th className="px-6 py-3 cursor-pointer hover:text-slate-700" onClick={() => setSortField('roomType')}>Type</th>
+                                <th className="px-6 py-3 text-center w-24">Capacity (Pax)</th>
+                                <th className="px-6 py-3 text-right cursor-pointer hover:text-slate-700" onClick={() => setSortField('utilizationPct')}>Util %</th>
+                                <th className="px-6 py-3 text-right cursor-pointer hover:text-slate-700" onClick={() => setSortField('avgOccupancy')}>Avg Occ.</th>
+                                <th className="px-6 py-3 text-center">Status</th>
+                                <th className="px-4 py-3 text-center w-10"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {metrics.roomMetrics.map((room) => (
-                                <RoomRow 
-                                    key={`${room.floor}-${room.roomName}`}
-                                    room={room}
-                                    onUpdateCapacity={onUpdateCapacity}
-                                    onDrillDown={onDrillDown}
-                                />
-                            ))}
+                            {sortedData.map((row, i) => {
+                                const isExpanded = expandedRoom === `${row.floor}-${row.roomName}`;
+                                return (
+                                <React.Fragment key={i}>
+                                <tr 
+                                    className={`hover:bg-slate-50 transition-colors cursor-pointer ${isExpanded ? 'bg-slate-50' : ''}`}
+                                    onClick={() => setExpandedRoom(isExpanded ? null : `${row.floor}-${row.roomName}`)}
+                                >
+                                    <td className="px-6 py-3 text-slate-600">{row.floor}</td>
+                                    <td className="px-6 py-3 font-medium text-slate-800">{row.roomName}</td>
+                                    <td className="px-6 py-3 text-slate-500 text-xs">{row.roomType}</td>
+                                    <td className="px-6 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                                        <div className="relative group/edit w-20 mx-auto">
+                                            <input 
+                                                type="number" 
+                                                className="w-full text-center border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none bg-transparent"
+                                                placeholder="-"
+                                                value={row.capacity || ''}
+                                                onChange={(e) => onUpdateCapacity(row.floor, row.roomName, parseInt(e.target.value) || 0)}
+                                            />
+                                            <Edit2 className="w-3 h-3 text-slate-300 absolute right-0 top-1 opacity-0 group-hover/edit:opacity-100 pointer-events-none" />
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-3 text-right">
+                                        <span className={`px-2 py-1 rounded text-xs font-bold ${row.utilizationPct > 50 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                                            {row.utilizationPct.toFixed(0)}%
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-3 text-right font-mono text-slate-600">
+                                        {row.avgOccupancy.toFixed(1)}
+                                    </td>
+                                    <td className="px-6 py-3 text-center">
+                                        {getRowBadge(row.classification)}
+                                    </td>
+                                    <td className="px-4 py-3 text-center text-slate-400">
+                                        <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                    </td>
+                                </tr>
+                                {isExpanded && (
+                                    <tr>
+                                        <td colSpan={8} className="p-0 bg-slate-50 border-b border-slate-200">
+                                            <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in slide-in-from-top-2">
+                                                
+                                                {/* Left: Summary Card */}
+                                                <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm h-full flex flex-col justify-between">
+                                                    <h4 className="text-xs font-bold text-slate-400 uppercase">Room Snapshot</h4>
+                                                    <div className="space-y-4">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-sm text-slate-600">Total Meetings (Occupied)</span>
+                                                            <span className="text-lg font-bold text-slate-800">{row.occupiedSlots}</span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-sm text-slate-600">Room Utilization</span>
+                                                            <span className={`text-lg font-bold ${row.utilizationPct > 50 ? 'text-emerald-600' : 'text-slate-800'}`}>
+                                                                {row.utilizationPct.toFixed(1)}%
+                                                            </span>
+                                                        </div>
+                                                        
+                                                        {/* Prominent Primary Size Display */}
+                                                        <div className="pt-2 border-t border-slate-100 mt-2">
+                                                            <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Primary Meeting Size</div>
+                                                            <div className="text-xl font-bold text-indigo-700">{row.topMeetingSize}</div>
+                                                            <div className="text-[10px] text-slate-400 leading-tight">
+                                                                {getPrimarySizeContext(row)}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Center: Capacity Fit Bar */}
+                                                <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm h-full flex flex-col">
+                                                    <h4 className="text-xs font-bold text-slate-500 uppercase mb-4">Capacity Fit Analysis</h4>
+                                                    <div className="flex-grow flex items-center">
+                                                        <CapacityFitBar row={row} />
+                                                    </div>
+                                                </div>
+
+                                                {/* Right: Size Breakdown */}
+                                                <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col max-h-64">
+                                                    <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
+                                                        <h4 className="text-xs font-bold text-slate-500 uppercase">Size Breakdown</h4>
+                                                    </div>
+                                                    <div className="flex-grow overflow-y-auto">
+                                                        <table className="w-full text-left text-xs">
+                                                            <thead className="bg-white sticky top-0 text-slate-400 font-bold border-b border-slate-100">
+                                                                <tr>
+                                                                    <th className="px-4 py-2">Size</th>
+                                                                    <th className="px-4 py-2 text-right">Count</th>
+                                                                    <th className="px-4 py-2 text-right">Occ %</th>
+                                                                    <th className="px-4 py-2"></th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody className="divide-y divide-slate-100">
+                                                                {row.sizeBreakdown.map((item, idx) => (
+                                                                    <tr key={idx} className="hover:bg-slate-50">
+                                                                        <td className="px-4 py-2 font-bold text-slate-700">{item.size} pax</td>
+                                                                        <td className="px-4 py-2 text-right text-slate-600">{item.count}</td>
+                                                                        <td className="px-4 py-2 text-right font-mono font-bold text-indigo-700">
+                                                                            {item.occupancyPct.toFixed(0)}%
+                                                                        </td>
+                                                                        <td className="px-4 py-2 text-right">
+                                                                            <button 
+                                                                                onClick={() => onDrillDown(`${row.roomName} - ${item.size} Pax Meetings`, item.events, row.classification)}
+                                                                                className="text-[9px] font-bold text-slate-400 hover:text-indigo-600 border border-slate-200 hover:border-indigo-200 px-2 py-1 rounded transition-colors"
+                                                                            >
+                                                                                View ({item.count})
+                                                                            </button>
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                                {row.sizeBreakdown.length === 0 && (
+                                                                    <tr><td colSpan={4} className="p-4 text-center text-slate-400">No data</td></tr>
+                                                                )}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                                </React.Fragment>
+                                )
+                            })}
                         </tbody>
                     </table>
                 </div>
